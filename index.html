@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏖 濟州島旅遊資訊卡 🏝</title>
+</head>
+<style>
+    h1{
+        text-align: center;
+    }
+    #map{
+        /* display: none; */
+        width: 80vw;
+        aspect-ratio: 1;
+        margin: 0 auto;
+    }
+    #popup{
+        display: none;
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+    #popup.active{
+        display: block;
+    }
+    .popup-content{
+        display: none;
+        /* display: flex; */
+        flex-direction: column;
+        width: 60vw;
+        max-width: 500px;
+        max-height: 80vh;
+        margin: 10vw auto;
+        padding: 20px;
+        position: relative;
+        border: 2px solid black;
+        border-radius: 5px;
+        background-color: white;
+        box-shadow: rgba(0, 0, 0, 0.04) 2px 2px;
+        overflow-y: auto;
+    }
+    .popup-content.active{
+        display: flex;
+        z-index: 100;
+    }
+    .popup-content .cross{
+        width: 44px;
+        aspect-ratio: 1;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+    }
+    .popup-content .cross::before, .popup-content .cross::after{ 
+        content: ""; 
+        display: block; 
+        width: 80%;
+        height: 3px;
+        background-color: black;
+        position: absolute; 
+        top: 50%;
+        right: 10%;
+    } 
+
+    .popup-content .cross::before{ 
+    transform: rotate(45deg); 
+    } 
+    .popup-content .cross::after{ 
+    transform: rotate(-45deg); 
+    }
+    .popup-content .title{
+        text-align: center;
+    }
+    .popup-content ul{
+        padding-left: 0;
+        list-style-type: none;
+    }
+    .popup-content ul li{
+        margin-bottom: 10px;
+    }
+
+    @media (max-width: 480px) {
+        #map{
+            /* display: none; */
+            width: 90vw;
+            aspect-ratio: unset;
+            height: 80vh;
+            margin: 0 auto;
+        }
+        .popup-content{
+            width: 75vw;
+        }
+        .popup-content .cross{
+            margin: 0 auto;
+            aspect-ratio: unset;
+            min-height: 60px;
+            position: relative;
+            top: unset;
+            right: unset;
+        }
+    }
+</style>
+<body>
+    <h1>🏖 濟州島旅遊資訊卡 🏝</h1>
+    <div id="map">
+    </div>
+    
+    <div id="popup">
+        <!-- <div class="popup-content" data-location="豚舍豚 Donsadon 돈사돈">
+            <div class="cross"></div>
+            <h3 class="title">
+                豚舍豚 Donsadon 돈사돈
+            </h3>
+            <hr>
+            <img src="https://lh3.googleusercontent.com/p/AF1QipOOVoHkDJRDKX7lLdDszvp4KrqS_AVWfkn6dolp=s1360-w1360-h1020" alt="豚舍豚 Donsadon 돈사돈">
+            <ul>
+                <li>地址：济州特别自治道济州市老衡洞 3086-3</li>
+                <li>韓文地址：제주특별자치도 제주시 우평로 19 (노형동 3086-3)</li>
+                <li>營業時間：12:30～22:00（每月第二個禮拜二公休）</li>
+                <li>特色：</li>
+            </ul>
+        </div> -->
+    </div>
+    <div id="csv-data"></div>
+</body>
+<!-- Async script executes immediately and must be after any DOM elements used in callback. -->
+<script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDtTHbFiGZkARvg5GaLKYEmjIwnc_nqJ4k&callback=initMap&v=weekly"
+    async
+>
+</script>
+<script>
+    let map;
+    function initMap() {
+        console.log('initMap');
+    };
+    
+    function set_location_popup(location_infos){
+        let popup = document.querySelector(`#popup`);
+        let content = ""
+        location_infos.forEach((location_info, i)=>{
+            content += `
+                <div class="popup-content" data-location="${location_info[0]}">
+                    <div class="cross"></div>
+                    <h3 class="title">
+                        ${location_info[0]}
+                    </h3>
+                    <hr>
+                    <img src="${location_info[4]}" alt="${location_info[0]}">
+                    <ul>
+                        <li>地址：${location_info[1]}</li>
+                        <li>韓文地址：${location_info[2]}</li>
+                        <li>營業時間：${location_info[3]}</li>
+                    </ul>
+                </div>
+            `;
+        });
+        popup.innerHTML = content;
+
+        location_infos.forEach((location_info, i)=>{
+            let popup_content = popup.querySelector(`.popup-content[data-location="${location_info[0]}"]`);
+            popup_content.querySelector('.cross').addEventListener('click', ()=>{
+                popup.classList.remove('active');
+                popup_content.classList.remove('active');
+            });
+        });
+    }
+</script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $.ajax({
+            type: "GET",
+            url: "../地圖標記資料.csv", // 根目錄下的 data.csv
+            dataType: "text",
+            success: function(data) {
+                let data_table = processData(data);
+            }
+        });
+        
+        function processData(allText) {
+            // 設置地圖
+            var map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 33.3846216, lng: 126.5534925 }, // 濟州島經緯度
+                zoom: 10
+            });
+
+            var geocoder = new google.maps.Geocoder();
+            let data_table = [];
+            var lines = allText.split("\n");
+            // let data_index = ["景點名稱", "地址", "韓文地址", "營業時間", "圖片連結"];
+            let data_index = [0, 5, 6, 3, 7];
+                
+            for (var i = 1; i < lines.length; i++) {
+                var cells = lines[i].split(",");
+                let data_info_arr = [];
+                for (var j = 0; j < data_index.length; j++) {
+                    data_info_arr[j] = cells[data_index[j]];
+                }
+                
+                data_table.push(data_info_arr);
+            }
+            // console.log(data_table);
+            set_location_popup(data_table);
+
+            for (var i = 0; i < data_table.length; i++) {
+                let name = data_table[i][0];
+                let address = (data_table[i][1] === '') ? data_table[i][1] : data_table[i][2];
+                geocoder.geocode({ 'address': address }, function(results, status) {
+                if (status === 'OK') {
+                        var latitude = results[0].geometry.location.lat();
+                        var longitude = results[0].geometry.location.lng();
+                        var marker = new google.maps.Marker({
+                            map: map,
+                            position: { lat: latitude, lng: longitude },
+                            label: {
+                                text: name,
+                                color: "black",
+                                fontWeight: "bold"
+                        }});
+                        // 添加點擊事件監聽器
+                        google.maps.event.addListener(marker, 'click', function() {
+                            // 在點擊時執行的處理函數
+                            let popup = document.querySelector(`#popup`);
+                            let popup_content = document.querySelector(`#popup .popup-content[data-location="${name}"]`);
+                            popup.classList.add('active');
+                            popup_content.classList.add('active');
+                        });
+                    } else {
+                        console.log('Geocode was not successful for the following reason: ' + status);
+                    }
+                });
+            }
+        }
+    });
+</script>
+</html>
